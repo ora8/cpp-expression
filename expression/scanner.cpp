@@ -2,147 +2,148 @@
 
 token scanner::scan()
 {
-	_location = _pos + 1;
-	while (_pos < _source.size() && std::isspace(_source[_pos]))
+	while (_source_iter != _source.end() && std::isspace(*_source_iter))
 	{
-		if (_source[_pos++] == '\0')
+		if (*(_source_iter++) == '\0')
 			_line++;
 	}
-
-	if (_pos == _source.size())
+	_location = _source_iter - _source.begin() + 1;
+	if (_source_iter == _source.end())
 		return token::END_OF_FILE;
-	switch (_source[_pos])
+	switch (*(_source_iter++))
 	{
 	case '*':
-		++_pos;
 		return token::STAR;
 	case '/':
-		++_pos;
 		return token::SLASH;
 	case '%':
-		++_pos;
 		return token::PERCENT;
 	case '+':
-		++_pos;
+		if (_source_iter != _source.end() && *_source_iter >= '0' && *_source_iter <= '9')
+		{
+			return scan_number_literal(false);
+		}
 		return token::PLUS;
 	case '-':
-		++_pos;
+		if (_source_iter != _source.end() && *_source_iter >= '0' && *_source_iter <= '9')
+		{
+			return scan_number_literal(true);
+		}
 		return token::MINUS;
 	case '<':
-		++_pos;
-		if (_pos < _source.size())
+		if (_source_iter != _source.end() && *_source_iter == '<')
 		{
-			if (_source[_pos] == '<')
-			{
-				++_pos;
-				return token::LESS_LESS;
-			}
-			else if (_source[_pos] == '=')
-			{
-				++_pos;
-				return token::LESS_EQUAL;
-			}
+			++_source_iter;
+			return token::LESS_LESS;
 		}
 		return token::LESS;
 	case '>':
-		++_pos;
-		if (_pos < _source.size())
+		if (_source_iter != _source.end())
 		{
-			if (_source[_pos] == '>')
+			if (*_source_iter == '>')
 			{
-				++_pos;
+				++_source_iter;
 				return token::GREATER_GREATER;
 			}
-			else if (_source[_pos] == '=')
+			else if (*_source_iter == '=')
 			{
-				++_pos;
+				++_source_iter;
 				return token::GREATER_EQUAL;
 			}
 		}
 		return token::GREATER;
 	case '=':
-		++_pos;
-		if (_pos < _source.size() && _source[_pos] == '=')
+		if (_source_iter < _source.end() && *_source_iter == '=')
 		{
-			++_pos;
+			++_source_iter;
 			return token::EQUAL_EQUAL;
 		}
 		return token::EQUAL;
 	case '!':
-		++_pos;
-		if (_pos < _source.size())
+		if (_source_iter != _source.end() && *_source_iter == '=')
 		{
-			if (_source[_pos] == '=')
-			{
-				++_pos;
-				return token::EXCLAIM_EQUAL;
-			}
-			else
-			{
-				error("= execpected");
-				return scan();
-			}
+			++_source_iter;
+			return token::EXCLAIM_EQUAL;
 		}
+		return token::NOT;
 	case '&':
-		++_pos;
-		if (_pos < _source.size() && _source[_pos] == '&')
+		if (_source_iter != _source.end() && *_source_iter == '&')
 		{
-			++_pos;
+			++_source_iter;
 			return token::AMP_AMP;
 		}
 		return token::AMP;
 	case '^':
-		++_pos;
 		return token::CARET;
 	case '|':
-		++_pos;
-		if (_pos < _source.size() && _source[_pos] == '|')
+		if (_source_iter != _source.end() && *_source_iter == '|')
 		{
-			++_pos;
+			++_source_iter;
 			return token::BAR_BAR;
 		}
 		return token::BAR;
 	case '(':
-		++_pos;
 		return token::LPAREN;
 	case ')':
-		++_pos;
 		return token::RPAREN;
 	default:
-		auto ch = _source[_pos];
-		if (std::isalpha(ch) || ch == '_')
+		auto ch = *(--_source_iter);
+		if (isdigit(ch))
 		{
-			_identifier = ch;
-			++_pos;
-			while (_pos < _source.size())
+			return scan_number_literal(false);
+		}
+		if (ch == '"')
+		{
+			_value.clear();
+			while (_source_iter++ != _source.end() && *_source_iter != '"')
 			{
-				ch = _source[_pos];
-				if (!(std::isalnum(ch) || ch == '_'))
-					break;
-				_identifier += ch;
-				++_pos;
+				_value += ch;
 			}
-			return token::IDENTIFIER;
+			if (*_source_iter == '"')
+				_source_iter++;
 		}
-		else if (ch >= '0' && ch <= '9')
-		{
-			_number = ch - '0';
-			++_pos;
-			while (_pos < _source.size())
-			{
-				ch = _source[_pos];
-				if (ch < '0' || ch > '9')
-					break;
-				_number = 10 * _number + ch - '0';
-				++_pos;
-			}
-			return token::NUMBER;
-		}
-		else
-		{
-			error(std::string("unexpected character ") + ch);
-			++_pos;
-			return scan();
-		}
+		return token::INVALID_CHARACTER;
 	}
 }
+
+token scanner::scan_number_literal(bool is_neg)
+{
+	if (is_neg)
+		_value = '-';
+	else
+		_value.clear();
+	char ch = *_source_iter;
+	if (ch < '0' || ch > '9')
+		return token::UNDEFINED;
+
+	auto is_float{ false };
+	_value += ch;
+	++_source_iter;
+	while (_source_iter != _source.end())
+	{
+		ch = *_source_iter;
+		if (ch == '.' && !is_float)
+			is_float = true;
+		else if (ch < '0' || ch > '9')
+			break;
+		_value += ch;
+		++_source_iter;
+	}
+	if (is_float)
+	{
+		if (_source_iter != _source.end() && (*_source_iter == 'e' || *_source_iter == 'E'))
+			_value += *(_source_iter++);
+		if (_source_iter != _source.end() && (*_source_iter == '+' || *_source_iter == '-'))
+			_value += *(_source_iter++);
+		while (_source_iter != _source.end())
+		{
+			ch = *_source_iter;
+			if (ch < '0' || ch > '9')
+				break;
+			_value += ch;
+			++_source_iter;
+		}
+		return token::FLOAT_LITERAL;
+	}
+	return token::INTEGER_LITERAL;
+ }
