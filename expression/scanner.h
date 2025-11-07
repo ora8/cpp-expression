@@ -6,11 +6,14 @@
 
 #include "token.h"
 
+class parser;
+
 class scanner
 {
 public:
-	scanner() = default;
-	token scan();
+	scanner(const parser& parser) : _parser{ parser } 
+	{}
+	token next();
 	std::string identifier() const
 	{
 		return _identifier;
@@ -19,9 +22,9 @@ public:
 	{
 		return _line;
 	}
-	size_t location() const
+	size_t column() const
 	{
-		return _location;
+		return _column;
 	}	
 	std::string value() const
 	{
@@ -34,13 +37,14 @@ public:
 		_line = 1;
 	}
 private:
+	const parser& _parser;
 	std::string _source;
-	size_t _location{ 1 };
+	size_t _column{ 1 };
 	std::string::iterator _source_iter;
 	size_t _line{ 1 };
-	token _token{ token::END_OF_FILE };
+	token _token{ token_kind::END_OF_FILE };
 	std::string _identifier;
 	std::string _value;
-	token scan_number_literal(bool is_neg);
+	token scan_number_literal();
 };
 

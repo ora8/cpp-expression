@@ -3,7 +3,7 @@
 #include "precedence.h"
 #include "scanner.h"
 
-static operator_precedence precedence_table[static_cast<size_t>(token::BAR_BAR) + 1] =
+static operator_precedence precedence_table[static_cast<size_t>(token_kind::BAR_BAR) + 1] =
 {
 	operator_precedence::NO_PRECEDENCE, // token::UNDEFINED
 	operator_precedence::POINT,        // token::STAR
@@ -29,11 +29,11 @@ static operator_precedence precedence_table[static_cast<size_t>(token::BAR_BAR) 
 
 bool precedence::is_binary_operator(token token, operator_precedence& precedence)
 {
-	if (static_cast<size_t>(token) >= sizeof(precedence_table) / sizeof(precedence_table[0]) ||
-		token == token::UNDEFINED)
+	if (static_cast<size_t>(token.kind) >= sizeof(precedence_table) / sizeof(precedence_table[0]) ||
+		token.kind == token_kind::UNDEFINED)
 	{
 		return false;
 	}
-	precedence = precedence_table[static_cast<size_t>(token)];
+	precedence = precedence_table[static_cast<size_t>(token.kind)];
 	return true;
 }

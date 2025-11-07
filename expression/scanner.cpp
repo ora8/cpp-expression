@@ -1,123 +1,122 @@
 #include "scanner.h"
 
-token scanner::scan()
+token scanner::next()
 {
 	while (_source_iter != _source.end() && std::isspace(*_source_iter))
 	{
 		if (*(_source_iter++) == '\0')
 			_line++;
 	}
-	_location = _source_iter - _source.begin() + 1;
+	_column = _source_iter - _source.begin() + 1;
 	if (_source_iter == _source.end())
-		return token::END_OF_FILE;
+		return { token_kind::END_OF_FILE, _line, _column, 0 };
 	switch (*(_source_iter++))
 	{
 	case '*':
-		return token::STAR;
+		return { token_kind::STAR, _line, _column, 0 };
 	case '/':
-		return token::SLASH;
+		return { token_kind::SLASH, _line, _column, 0 };
 	case '%':
-		return token::PERCENT;
+		return { token_kind::PERCENT, _line, _column, 0 };
 	case '+':
 		if (_source_iter != _source.end() && *_source_iter >= '0' && *_source_iter <= '9')
 		{
-			return scan_number_literal(false);
+			return scan_number_literal();
 		}
-		return token::PLUS;
+		return { token_kind::PLUS, _line, _column, 0 };
 	case '-':
 		if (_source_iter != _source.end() && *_source_iter >= '0' && *_source_iter <= '9')
 		{
-			return scan_number_literal(true);
+			return scan_number_literal();
 		}
-		return token::MINUS;
+		return { token_kind::DASH, _line, _column, 0 };
 	case '<':
 		if (_source_iter != _source.end() && *_source_iter == '<')
 		{
 			++_source_iter;
-			return token::LESS_LESS;
+			return { token_kind::LESS_LESS, _line, _column, 0 };
 		}
-		return token::LESS;
+		return { token_kind::LESS, _line, _column, 0
+		};
 	case '>':
 		if (_source_iter != _source.end())
 		{
 			if (*_source_iter == '>')
 			{
 				++_source_iter;
-				return token::GREATER_GREATER;
+				return { token_kind::GREATER_GREATER, _line, _column, 0 };
 			}
 			else if (*_source_iter == '=')
 			{
 				++_source_iter;
-				return token::GREATER_EQUAL;
+				return { token_kind::GREATER_EQUAL, _line, _column, 0 };
 			}
 		}
-		return token::GREATER;
+		return { token_kind::GREATER, _line, _column, 0 };
 	case '=':
 		if (_source_iter < _source.end() && *_source_iter == '=')
 		{
 			++_source_iter;
-			return token::EQUAL_EQUAL;
+			return { token_kind::EQUAL_EQUAL, _line, _column, 0 };
 		}
-		return token::EQUAL;
+		return { token_kind::EQUAL, _line, _column, 0 };
 	case '!':
 		if (_source_iter != _source.end() && *_source_iter == '=')
 		{
 			++_source_iter;
-			return token::EXCLAIM_EQUAL;
+			return { token_kind::EXCLAIM_EQUAL, _line, _column, 0 };
 		}
-		return token::NOT;
+		return { token_kind::NOT, _line, _column, 0 };
 	case '&':
 		if (_source_iter != _source.end() && *_source_iter == '&')
 		{
 			++_source_iter;
-			return token::AMP_AMP;
+			return { token_kind::AMP_AMP, _line, _column, 0 };
 		}
-		return token::AMP;
+		return {token_kind::AMP, _line, _column, 0 };
 	case '^':
-		return token::CARET;
+		return { token_kind::CARET, _line, _column, 0 };
 	case '|':
 		if (_source_iter != _source.end() && *_source_iter == '|')
 		{
 			++_source_iter;
-			return token::BAR_BAR;
+			return { token_kind::BAR_BAR, _line, _column, 0 };
 		}
-		return token::BAR;
+		return { token_kind::BAR, _line, _column, 0 };
 	case '(':
-		return token::LPAREN;
+		return { token_kind::LPAREN, _line, _column, 0 };
 	case ')':
-		return token::RPAREN;
+		return { token_kind::RPAREN, _line, _column, 0};
 	default:
 		auto ch = *(--_source_iter);
 		if (isdigit(ch))
 		{
-			return scan_number_literal(false);
+			return scan_number_literal();
 		}
 		if (ch == '"')
 		{
-			_value.clear();
+			std::string value;
 			while (_source_iter++ != _source.end() && *_source_iter != '"')
 			{
-				_value += ch;
+				value += ch;
 			}
 			if (*_source_iter == '"')
 				_source_iter++;
+			return { token_kind::STRING_LITERAL, _line, _column, 0, value };
 		}
-		return token::INVALID_CHARACTER;
+		return { token_kind::INVALID_CHARACTER, _line, _column, 0 };
 	}
 }
 
-token scanner::scan_number_literal(bool is_neg)
+token scanner::scan_number_literal()
 {
-	if (is_neg)
-		_value = '-';
-	else
-		_value.clear();
+	std::string value;
+	auto negative{ *_source_iter == '-' };
+	if (*_source_iter == '+' || negative)
+		_source_iter++;
 	char ch = *_source_iter;
-	if (ch < '0' || ch > '9')
-		return token::UNDEFINED;
-
 	auto is_float{ false };
-	_value += ch;
+	value += ch;
 	++_source_iter;
 	while (_source_iter != _source.end())
 	{
@@ -126,24 +125,43 @@ token scanner::scan_number_literal(bool is_neg)
 			is_float = true;
 		else if (ch < '0' || ch > '9')
 			break;
-		_value += ch;
+		value += ch;
 		++_source_iter;
 	}
 	if (is_float)
 	{
 		if (_source_iter != _source.end() && (*_source_iter == 'e' || *_source_iter == 'E'))
-			_value += *(_source_iter++);
+			value += *(_source_iter++);
 		if (_source_iter != _source.end() && (*_source_iter == '+' || *_source_iter == '-'))
-			_value += *(_source_iter++);
+			value += *(_source_iter++);
 		while (_source_iter != _source.end())
 		{
 			ch = *_source_iter;
 			if (ch < '0' || ch > '9')
 				break;
-			_value += ch;
+			value += ch;
 			++_source_iter;
 		}
-		return token::FLOAT_LITERAL;
+
+		auto d = std::stod(value);
+		if (d < std::numeric_limits<float>::min() || d > std::numeric_limits<float>::max())
+			return { token_kind::DOUBLE_LITERAL, _line, _column, 0 };
+		return { token_kind::FLOAT_LITERAL, _line, _column, static_cast<float>(d) };
 	}
-	return token::INTEGER_LITERAL;
- }
+	if (negative)
+	{
+		auto ll = std::stoll(value);
+		if (ll < std::numeric_limits<long>::min() || ll > std::numeric_limits<long>::max())
+			return { token_kind::LONG_LONG_LITERAL, _line, _column, ll };
+		if (ll < std::numeric_limits<int>::min() || ll > std::numeric_limits<int>::max())
+			return { token_kind::LONG_LITERAL, _line, _column, static_cast<long>(ll) };
+		return { token_kind::INT_LITERAL, _line, _column, static_cast<int>(ll) };
+
+	}
+	auto ull = std::stoull(value);
+	if (ull > std::numeric_limits<unsigned long>::max())
+		return { token_kind::UNSIGNED_LONG_LONG_LITERAL, _line, _column, ull };
+	if (ull > std::numeric_limits<unsigned int>::max())
+		return { token_kind::UNSIGNED_LONG_LITERAL, _line, _column, static_cast<unsigned int>(ull) };
+	return { token_kind::UNSIGNED_INT_LITERAL, _line, _column, static_cast<unsigned int>(ull) };
+}

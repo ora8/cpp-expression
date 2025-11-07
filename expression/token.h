@@ -1,13 +1,15 @@
 #pragma once
 
-enum class token : unsigned int
+#include <variant>
+
+enum class token_kind : unsigned int
 {
 	UNDEFINED = 1,
 	STAR = 2,
 	SLASH = 3,
 	PERCENT = 4,
 	PLUS = 5,
-	MINUS = 6,
+	DASH = 6,
 	LESS_LESS = 7,
 	GREATER_GREATER = 8,
 	LESS = 9,
@@ -37,8 +39,27 @@ enum class token : unsigned int
 	OR_EQ = 33,
 	XOR = 34,
 	XOR_EQ = 35,
-	INTEGER_LITERAL = 100,
-	FLOAT_LITERAL = 101,
+	INT_LITERAL = 100,
+	UNSIGNED_INT_LITERAL = 102,
+	LONG_LITERAL = 103,
+	UNSIGNED_LONG_LITERAL = 104,
+	LONG_LONG_LITERAL = 105,
+	UNSIGNED_LONG_LONG_LITERAL = 106,
+	FLOAT_LITERAL = 107,
+	DOUBLE_LITERAL = 108,
+	STRING_LITERAL = 109,
 	INVALID_CHARACTER = 200,
 	END_OF_FILE = 300,
+};
+
+using token_value = std::variant<bool, char, unsigned char, short, unsigned short, int, unsigned int,
+	long, unsigned long, long long, unsigned long long, float, double>;
+
+struct token 
+{
+	token_kind kind;
+	size_t    line;	  // token line (starts at 1)
+	size_t    column;	  // token column (starts at 1)
+	token_value value;
+	std::string str;
 };

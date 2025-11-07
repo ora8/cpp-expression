@@ -11,7 +11,7 @@
 int main()
 {
 	parser parser{ "first.exp" };
-	expr_value value{ 0 };
+	token_value value{ 0 };
 	if (!parser.parse(value))
 	{
 		std::cerr << "Parsing failed." << std::endl;

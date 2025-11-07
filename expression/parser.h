@@ -8,86 +8,74 @@
 #include "scanner.h"
 #include "token.h"
 
-using expr_value = std::variant<bool, char, unsigned char, short, unsigned short, int, unsigned int,  
-		long, unsigned long, long long, unsigned long long, float, double>;
-
 class parser
 {
 public:
-	parser(std::string file_name);
-	bool parse(expr_value& value);
+	parser(const std::string& filename);
+	bool parse(token_value& value);
 private:
 	std::string _source;
 	scanner _scanner;
-	std::deque<token> _cache_tokens;
-	token _lookahead_token{ token::END_OF_FILE };
+	unsigned int _error_distance{ 3 };
+	unsigned int _errors{ 0 };
+	size_t _line;
+	token _lookahead_token;
+	token _token;
+	size_t _pos;
+	bool check(token_kind expected_token_kind, const std::string& error_message);
 	void error(const std::string& message);
 	void error(std::string&& message);
-	void insert_token(token token)
-	{
-		_cache_tokens.push_front(token);
-		_lookahead_token = token;
-	}
-	void consume_token()
-	{
-		if (!_cache_tokens.empty())
-		{
-			_lookahead_token = _cache_tokens.front();
-			_cache_tokens.pop_front();
-		}
-		if (!_cache_tokens.empty())
-			_lookahead_token = _cache_tokens.front();
-		else
-			_lookahead_token = _scanner.scan();
-	}
 	bool is_primary_expression(token token)
 	{
-		switch (token)
+		switch (token.kind)
 		{
-		case token::INTEGER_LITERAL:
-		case token::FLOAT_LITERAL:
+		case token_kind::INT_LITERAL:
+		case token_kind::UNSIGNED_INT_LITERAL:
+		case token_kind::LONG_LITERAL:
+		case token_kind::UNSIGNED_LONG_LITERAL:
+		case token_kind::LONG_LONG_LITERAL:
+		case token_kind::UNSIGNED_LONG_LONG_LITERAL:
+		case token_kind::FLOAT_LITERAL:
+		case token_kind::DOUBLE_LITERAL:
 			return true;
 		default:
 			return false;
 		}
 	}
-	token lookahead_token(size_t n = 0)
+	void scan(size_t n = 0)
 	{
-		if (n == 0)
-			return _lookahead_token;
-		auto m = n - _cache_tokens.size();
-		while (m-- > 0)
-		{
-			_cache_tokens.push_back(_scanner.scan());
-		}
-		return _cache_tokens[n];
+		_token = _lookahead_token;
+		_pos = _scanner.column();
+		_line = _scanner.line();
+		_lookahead_token = _scanner.next();
+		_error_distance++;
 	}
-	bool parse_expression(expr_value& value);
-	bool parse_binary_expression(expr_value& value);
-	bool parse_binary_expression_prime(expr_value& value, operator_precedence minimal_precedence);
-	bool parse_hex_literal(expr_value& value, bool& is_hex);
-	bool parse_integer_literal(expr_value& value);
-	bool parse_primary_expression(expr_value& value);
-	bool parse_unary_expression(expr_value& value);
+	bool parse_expression(token_value& value);
+	bool parse_binary_expression(token_value& value);
+	bool parse_binary_expression_prime(token_value& value, operator_precedence minimal_precedence);
+	bool parse_hex_literal(token_value& value, bool& is_hex);
+	bool parse_integer_literal(token_value& value);
+	bool parse_primary_expression(token_value& value);
+	bool parse_unary_expression(token_value& value);
 
-	expr_value add(expr_value& lhs, expr_value& rhs);
-	expr_value subtract(expr_value& lhs, expr_value& rhs);
-	expr_value multiply(expr_value& lhs, expr_value& rhs);
-	expr_value divide(expr_value& lhs, expr_value& rhs);
-	expr_value modulus(expr_value& lhs, expr_value& rhs);
-	expr_value left_shift(expr_value& left, expr_value& right);
-	expr_value right_shift(expr_value& left, expr_value& right);
-	expr_value bitwise_and(expr_value& left, expr_value& right);
-	expr_value bitwise_not(expr_value& value);
-	expr_value bitwise_or(expr_value& left, expr_value& right);
-	bool greater(expr_value& left, expr_value& right);
-	bool less(expr_value& left, expr_value& right);
-	bool greater_equal(expr_value& left, expr_value& right);
-	bool less_equal(expr_value& left, expr_value& right);
-	bool logical_and(expr_value& left, expr_value& right);
-	bool logical_or(expr_value& left, expr_value& right);
-	expr_value bitwise_exclusive_or(expr_value& left, expr_value& right);
-	expr_value negate(expr_value& value);
-	expr_value not_(expr_value& value);
+	token_value add(token_value& lhs, token_value& rhs);
+	token_value subtract(token_value& lhs, token_value& rhs);
+	token_value multiply(token_value& lhs, token_value& rhs);
+	token_value divide(token_value& lhs, token_value& rhs);
+	token_value modulus(token_value& lhs, token_value& rhs);
+	token_value left_shift(token_value& left, token_value& right);
+	token_value right_shift(token_value& left, token_value& right);
+	token_value bitwise_and(token_value& left, token_value& right);
+	token_value bitwise_not(token_value& value);
+	token_value bitwise_or(token_value& left, token_value& right);
+	bool greater(token_value& left, token_value& right);
+	bool less(token_value& left, token_value& right);
+	bool greater_equal(token_value& left, token_value& right);
+	bool less_equal(token_value& left, token_value& right);
+	bool logical_and(token_value& left, token_value& right);
+	bool logical_or(token_value& left, token_value& right);
+	token_value bitwise_exclusive_or(token_value& left, token_value& right);
+	token_value negate(token_value& value);
+	token_value not_(token_value& value);
 };
 
